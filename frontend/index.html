@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enviar Foto por Correo</title>
+    <!-- Incluye Tailwind CSS desde CDN para estilos responsivos y modernos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define la fuente Inter para todo el cuerpo para una estética limpia */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Fondo con gradiente para una apariencia agradable */
+            background: linear-gradient(135deg, #a78bfa, #818cf8);
+        }
+        /* Estilo personalizado para el input de tipo file para mejor visualización */
+        input[type="file"]::file-selector-button {
+            background-color: #e0e7ff; /* Tailwind indigo-50 */
+            color: #4338ca; /* Tailwind indigo-700 */
+            border: none;
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 600; /* font-semibold */
+            margin-right: 1rem; /* mr-4 */
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #c7d2fe; /* Tailwind indigo-100 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+        <h1 class="text-3xl font-bold text-indigo-700 mb-6">Enviar Foto por Correo</h1>
+
+        <div class="mb-6">
+            <label for="emailInput" class="block text-gray-700 text-sm font-bold mb-2 text-left">
+                Correo Electrónico Destino:
+            </label>
+            <input type="email" id="emailInput" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="tu_correo@example.com">
+        </div>
+
+        <div class="mb-6">
+            <label for="photoInput" class="block text-gray-700 text-sm font-bold mb-2 text-left">
+                Selecciona una Foto:
+            </label>
+            <!-- El atributo 'capture="camera"' sugiere al móvil usar la cámara directamente -->
+            <!-- 'accept="image/*"' filtra para que solo se puedan seleccionar imágenes -->
+            <input type="file" id="photoInput" accept="image/*" capture="camera" class="block w-full text-sm text-gray-500">
+        </div>
+
+        <button id="sendBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 w-full">
+            Enviar Foto
+        </button>
+
+        <p id="statusMessage" class="mt-4 text-sm font-semibold text-gray-700"></p>
+    </div>
+
+    <script>
+        // Obtener referencias a los elementos del DOM
+        const emailInput = document.getElementById('emailInput');
+        const photoInput = document.getElementById('photoInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // URL del backend Flask.
+        // ¡IMPORTANTE! Ajusta esta URL si tu backend no corre en localhost:5000 o si lo despliegas en un servidor diferente.
+        // Cuando uses Docker Compose, 'backend' será el nombre del servicio Flask en la red Docker.
+        const BACKEND_URL = 'http://localhost:5000/send-photo';
+
+        // Manejador de eventos para el botón de envío
+        sendBtn.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const photoFile = photoInput.files[0]; // Obtener el primer archivo seleccionado
+
+            // Validaciones básicas del lado del cliente
+            if (!email) {
+                statusMessage.textContent = 'Por favor, introduce un correo electrónico.';
+                statusMessage.className = 'mt-4 text-sm font-semibold text-red-600';
+                return;
+            }
+
+            if (!email.includes('@') || !email.includes('.')) {
+                statusMessage.textContent = 'Por favor, introduce un correo electrónico válido.';
+                statusMessage.className = 'mt-4 text-sm font-semibold text-red-600';
+                return;
+            }
+
+            if (!photoFile) {
+                statusMessage.textContent = 'Por favor, selecciona una foto.';
+                statusMessage.className = 'mt-4 text-sm font-semibold text-red-600';
+                return;
+            }
+
+            // Mostrar mensaje de envío y deshabilitar el botón
+            statusMessage.textContent = 'Enviando foto...';
+            statusMessage.className = 'mt-4 text-sm font-semibold text-blue-600';
+            sendBtn.disabled = true; // Deshabilitar para evitar múltiples envíos
+
+            // Crear un objeto FormData para enviar archivos y datos de formulario
+            const formData = new FormData();
+            formData.append('email', email); // Añadir el correo al formulario
+            formData.append('photo', photoFile); // Añadir el archivo de la foto al formulario
+
+            try {
+                // Enviar los datos al backend usando Fetch API
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: formData, // FormData se encarga de configurar el 'Content-Type' automáticamente
+                });
+
+                const data = await response.json(); // Leer la respuesta JSON del servidor
+
+                if (response.ok) { // Si la respuesta HTTP es 200-299 (éxito)
+                    statusMessage.textContent = data.message;
+                    statusMessage.className = 'mt-4 text-sm font-semibold text-green-600';
+                    // Limpiar campos después de un envío exitoso
+                    emailInput.value = '';
+                    photoInput.value = '';
+                } else { // Si hay un error HTTP
+                    statusMessage.textContent = `Error: ${data.message || 'Algo salió mal en el servidor.'}`;
+                    statusMessage.className = 'mt-4 text-sm font-semibold text-red-600';
+                }
+            } catch (error) {
+                // Manejo de errores de red o conexión
+                console.error('Error al enviar la foto:', error);
+                statusMessage.textContent = 'Error de conexión con el servidor. Asegúrate de que el backend está corriendo.';
+                statusMessage.className = 'mt-4 text-sm font-semibold text-red-600';
+            } finally {
+                sendBtn.disabled = false; // Habilitar el botón de nuevo
+            }
+        });
+    </script>
+</body>
+</html>

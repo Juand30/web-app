@@ -1,0 +1,29 @@
+# Versión del formato de Docker Compose
+version: '3.8'
+
+services:
+  # Servicio para el Frontend (Servidor Nginx)
+  frontend:
+    build: ./frontend # Le dice a Docker que busque el Dockerfile en la carpeta 'frontend'
+    ports:
+      - "80:80" # Mapea el puerto 80 del host al puerto 80 del contenedor Nginx
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro # Monta index.html para desarrollo, si cambias el HTML, no necesitas reconstruir el frontend. ':ro' es solo lectura.
+
+  # Servicio para el Backend (Aplicación Flask)
+  backend:
+    build: ./backend # Le dice a Docker que busque el Dockerfile en la carpeta 'backend'
+    ports:
+      - "5000:5000" # Mapea el puerto 5000 del host al puerto 5000 del contenedor Flask
+    volumes:
+      - ./backend:/app # Monta la carpeta del backend en el contenedor para desarrollo. Si cambias el código Python, Flask se recargará.
+    environment: # Pasa las variables de entorno para las credenciales de correo
+      # ¡IMPORTANTE! Reemplaza estos valores con tus credenciales reales o carga desde .env en producción.
+      # Docker Compose puede leer de un archivo .env si lo pones en la raíz del proyecto (junto a docker-compose.yml).
+      # Ejemplo: EMAIL_USER: ${EMAIL_USER} (si usas un .env en la raíz del proyecto docker-compose)
+      EMAIL_USER: "tu_correo_de_envio@gmail.com" # <--- REEMPLAZA ESTO
+      EMAIL_PASSWORD: "tu_contraseña_de_aplicacion_gmail" # <--- REEMPLAZA ESTO
+      SMTP_SERVER: "smtp.gmail.com"
+      SMTP_PORT: "587"
+    depends_on:
+      - frontend # Opcional: indica que el backend depende del frontend (solo para orden de inicio)
